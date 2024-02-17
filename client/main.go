@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func main() {
@@ -23,9 +26,9 @@ func main() {
 
 	client := pb.NewFileServiceClient(conn)
 
-	callUploadAndNotifyProgress(client)
+	// callUploadAndNotifyProgress(client)
 	// callUpload(client)
-	// callDownload(client)
+	callDownload(client)
 	// callListFiles(client)
 
 }
@@ -147,40 +150,46 @@ func callUpload(client pb.FileServiceClient) {
 }
 
 func callDownload(client pb.FileServiceClient) {
-	stream, err := client.Download(context.Background(), &pb.DownloadRequest{FileName: "sports.txt"})
+	stream, err := client.Download(context.Background(), &pb.DownloadRequest{FileName: "sportss.txt"})
 
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	for {
-		fmt.Println("1")
 		res, err := stream.Recv()
-
-		fmt.Println("2")
 
 		if err == io.EOF {
 			break
 		}
 
 		if err != nil {
-			panic(err)
+			resErr, ok := status.FromError(err)
+			if ok {
+				if resErr.Code() == codes.NotFound {
+					log.Fatalf("Error Code: %v, Error Message: %v", resErr.Code(), resErr.Message())
+				} else {
+					log.Fatalln("unknown error")
+				}
+			} else {
+				log.Fatalln(err)
+			}
 		}
 
-		fmt.Println("3")
-
 		fmt.Println(res.GetData())
-		fmt.Println("4")
 		fmt.Println(string(res.GetData()))
-		fmt.Println("5")
 	}
 }
 
 func callListFiles(client pb.FileServiceClient) {
-	res, err := client.ListFiles(context.Background(), &pb.ListFilesRequest{})
+	md := metadata.New(map[string]string{"authorization": "Bearer ttest-token"})
+
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+
+	res, err := client.ListFiles(ctx, &pb.ListFilesRequest{})
 
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	fmt.Println(res.GetFileNames())
